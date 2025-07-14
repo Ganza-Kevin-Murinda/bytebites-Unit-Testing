@@ -31,7 +31,7 @@
         </processorPath>
         <module name="api-gateway" />
       </profile>
-      <profile name="Annotation profile for restaurant-service" enabled="true">
+      <profile name="Annotation profile for order-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
@@ -40,8 +40,8 @@
           <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct-processor/1.5.5.Final/mapstruct-processor-1.5.5.Final.jar" />
           <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct/1.5.5.Final/mapstruct-1.5.5.Final.jar" />
         </processorPath>
-        <module name="restaurant-service" />
         <module name="order-service" />
+        <module name="restaurant-service" />
       </profile>
     </annotationProcessing>
   </component>
