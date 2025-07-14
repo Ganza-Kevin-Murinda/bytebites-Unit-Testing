@@ -1,177 +1,106 @@
-# 🍔 ByteBites Microservices Platform – Lab 6
+# 🧪 Order Service – Lab Work 7: Testing, Observability & Code Review for Microservices
 
-## ✅ Overview
+## 📌 Overview
 
-This project is the completed implementation of **Lab 6: A Secure Microservices Platform from Scratch** for ByteBites — an online food delivery startup. The goal was to build a **cloud-native microservices architecture** using **Spring Boot**, **Spring Cloud**, **JWT**, **OAuth2**, and **RabbitMQ**, with a focus on **security, scalability, and resilience**.
-
----
-
-## 🧱 Microservices Architecture
-
-The platform is built using the following independent services:
-
-```bash
-bytebites-platform/
-├── discovery-server # Eureka service registry
-├── config-server # Centralized external config
-├── api-gateway # Entry point + JWT verification
-├── auth-service # Login, registration, JWT generation
-├── restaurant-service # CRUD for restaurants and menus
-├── order-service # Place/view orders
-├── notification-service # Listens to events and simulates notifications
-```
+This repository contains the enhanced `order-service` microservice for **Lab Work 7**, focusing on improving the **testing**, **observability**, and **code quality** of a Spring Boot-based microservice. It builds upon the foundations laid in Week 6.
 
 ---
 
+## 🔧 Technologies Used
 
----
-
-## 🔐 Security Features
-
-| Feature                  | Description |
-|--------------------------|-------------|
-| **JWT-based Authentication** | Login via `/auth/login` returns signed JWT |
-| **Role-Based Access Control (RBAC)** | `@PreAuthorize` + JWT roles used to restrict actions |
-| **OAuth2 Support** | Google OAuth2 login with automatic role mapping |
-| **API Gateway Filters** | Validates JWT and forwards user info as headers |
-| **Stateless Architecture** | No sessions; services rely solely on JWT |
-| **Resource Ownership Checks** | Ensures users only access their own data |
-
----
-
-## 🔄 Core Features Implemented
-
-### 🧩 Infrastructure
-- ✅ **Spring Cloud Config Server** – serves config from Git
-- ✅ **Eureka Discovery Server** – registers all services
-- ✅ **API Gateway** – routes requests, validates JWT, and secures entry
-
-### 👥 Auth Service
-- ✅ Registration with BCrypt password hashing
-- ✅ JWT issuance and role embedding
-- ✅ OAuth2 login with default `ROLE_CUSTOMER`
-
-### 🍽️ Restaurant Service
-- ✅ CRUD for restaurants & menus
-- ✅ Owners can only manage their own restaurants
-- ✅ All users can view restaurant listings
-
-### 🛒 Order Service
-- ✅ Place and view orders
-- ✅ Orders associated with authenticated customers
-- ✅ Restaurant owners can view incoming orders
-- ✅ Publishes `OrderPlacedEvent` to RabbitMQ
-
-### 🔔 Notification Service
-- ✅ Listens to order events from RabbitMQ
-- ✅ Simulates email/push notifications
-
----
-
-## 🚀 Event-Driven Architecture
-
-### ✅ Messaging with RabbitMQ:
-- `order-service` publishes `OrderPlacedEvent`
-- `notification-service` and `restaurant-service` listen to these events to process actions asynchronously
-
----
-
-## 🛡️ Resilience
-
-### ✅ Circuit Breakers (Resilience4j):
-- All inter-service calls use **circuit breakers**
-- Configured fallback methods ensure graceful degradation
-- `/actuator/circuitbreakerevents` enabled for visibility
-
----
-
-## ⚙️ Configuration Strategy
-
-- All services load config from a Git-backed **Spring Cloud Config Server**
-- Each service has its own `.properties` file in [bytebites-config-repo](https://github.com/your-username/bytebites-config-repo)
-- Config includes DB settings, ports, and feature toggles
-
----
-
-## 📦 Technologies Used
-
-- **Spring Boot 3.2.5**
-- **Spring Cloud 2023.0.1**
-- **Spring Cloud Gateway**
-- **Eureka Discovery**
-- **RabbitMQ**
-- **JWT & OAuth2**
-- **Spring Security**
+- **Spring Boot**
+- **Spring Security (JWT)**
+- **JUnit 5 + Mockito**
+- **TestContainers**
+- **SLF4J (Structured Logging)**
 - **PostgreSQL**
-- **Resilience4j**
-- **H2 (test environments)**
+- **MapStruct (DTO Mapping)**
+- **MockMvc (Integration Testing)**
 
 ---
 
-## 🧪 How to Test
+## ✅ Features Implemented
 
-### 🔐 Auth Flow
-```bash
-POST /auth/login
-# → returns JWT
+### 🔐 Input Validation
 
-Use JWT in Authorization header:
-Authorization: Bearer <token>
+- Validation on `OrderRequestDTO` and nested `OrderItemRequestDTO`
+- Uses annotations like `@NotNull`, `@NotEmpty`, `@Valid`
+- Nested object validation enabled via `@Valid` on collections
+
+---
+
+### ⚠️ Centralized Exception Handling
+
+- Global exception handler using `@RestControllerAdvice`
+- Consistent JSON error responses for:
+  - Validation errors
+  - Domain-specific errors (e.g., `OrderNotFoundException`)
+  - Access-denied errors
+
+---
+
+### 📘 Logging and Observability
+
+- Structured logging via **SLF4J**
+- All critical actions logged with metadata:
+  - `customerId`, `orderId`, `restaurantId`
+- Consistent logging across:
+  - Controller layer (`@Slf4j`)
+  - Service layer
+  - Exception handler
+
+---
+
+### 🧪 Unit Testing with JUnit + Mockito
+
+- Added **unit tests** for service methods:
+  - Mocked repository and validation layers
+  - Success and error paths verified
+- Used **Mockito annotations** and best practices:
+  - `@Mock`, `@InjectMocks`, `@BeforeEach`, etc.
+
+---
+
+### 🌐 Integration Testing with TestContainers
+
+- Bootstrapped PostgreSQL container using TestContainers
+- Used **`@SpringBootTest` + `MockMvc`** to hit real API endpoints
+- Verified full request/response cycle including:
+  - JWT security enforcement
+  - Custom headers (`X-User-Id`)
+  - Validation and persistence logic
+- Created isolated and reproducible test data
+
+---
+
+## 🧪 Example Integration Test
+
+```java
+@Test
+void createOrder_shouldReturnCreatedOrder_withValidJWT() throws Exception {
+    String jwt = testJwtUtil.generateToken("user-abc", "user-abc@gmail.com", "ROLE_CUSTOMER");
+
+    mockMvc.perform(post("/api/orders")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
+            .header("X-User-Id", "user-abc")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(orderRequest)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.restaurantName").value("The Grill House"))
+        .andExpect(jsonPath("$.totalAmount").value("10.00"));
+}
 ```
 
----
-
-## 🔁 API Gateway Routes
-| Path                  | Target Service       |
-| --------------------- | -------------------- |
-| `/auth/**`            | `auth-service`       |
-| `/api/restaurants/**` | `restaurant-service` |
-| `/api/orders/**`      | `order-service`      |
-
+## 📁 Test Profile Configuration
+- A test profile was used via `@ActiveProfiles("test")`
+- Application config: `application-test.yml` uses TestContainers (PostgreSQL)
+- Security config supports test-generated JWTs
 
 ---
 
-## 🧪 Role Access Examples
-
-| Endpoint                | Required Role           |
-| ----------------------- | ----------------------- |
-| POST `/api/orders`      | `ROLE_CUSTOMER`         |
-| POST `/api/restaurants` | `ROLE_RESTAURANT_OWNER` |
-| GET `/admin/users`      | `ROLE_ADMIN`            |
-
-
----
-
-## 🛠️ Setup Instructions
-
-1. Clone the monorepo:
-    ```bash
-   git clone https://github.com/Ganza-Kevin-Murinda/bytebites-mono-repo.git
-    ```
-2. Clone the config-repo(`private`):
-    ```bash
-   git clone https://github.com/Ganza-Kevin-Murinda/bytebites-config-repo.git
-    ```
-3. Set environment variables where required
-4. Start RabbitMQ (via Docker or local install)
-5. Run services in the following order:
-    - discovery-server
-    - config-server
-    - auth-service
-    - restaurant-service
-    - order-service
-    - notification-service
-    - api-gateway
-   
----
-
-## 🔍 Observability
-- actuator endpoints enabled for all services
-- Use:
+## 🤝 Code Review Note
 ```bash
-GET /actuator/circuitbreakerevents
-GET /actuator/health
-GET /actuator/metrics
+Link
 ```
 ---
 
